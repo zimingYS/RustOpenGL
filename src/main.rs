@@ -31,8 +31,11 @@ fn main() {
     let vertex_shader_src = r#"
         #version 140
         in vec2 position;
+        uniform float x;
         void main() {
-            gl_Position = vec4(position, 0.0, 1.0);
+            vec2 pos = position;
+            pos.x += x;
+            gl_Position = vec4(pos, 0.0, 1.0);
         }
     "#;
 
@@ -48,25 +51,43 @@ fn main() {
     //绑定到Glium
     let program = glium::Program::from_source(&display, vertex_shader_src, fragment_shader_src, None).unwrap();
 
-    //绘制窗口
-    let mut target = display.draw();
 
-    //绘制背景(R,G,B,不透明度)
-    target.clear_color(0.0, 1.0, 1.0, 1.0);
-
-    //绘制三角形图像
-    target.draw(&vertex_buffer, &indices, &program, &glium::uniforms::EmptyUniforms,
-                &Default::default()).unwrap();
-
-    //绘制完整，将图片渲染到窗口
-    target.finish().unwrap();
+    //t为移动量
+    let mut t: f32 = 0.0;
 
     //在事件CloseRequested发生之前使窗口不退出
     let _ = event_loop.run(move |event, window_target| {
         match event {
             glium::winit::event::Event::WindowEvent { event, .. } => match event {
+                //接收到CloseRequested时退出循环
                 glium::winit::event::WindowEvent::CloseRequested => window_target.exit(),
+                //当窗口大小改变时调整
+                glium::winit::event::WindowEvent::Resized(window_size) => {
+                    display.resize(window_size.into());
+                },
+                //绘制图像
+                glium::winit::event::WindowEvent::RedrawRequested => {
+                    // 把绘制代码放到这里！
+                    t += 0.2;
+                    let x_off = t.sin() * 0.5;
+                    //更新顶点位置
+                    let shape = vec![
+                        Vertex { position: [-0.5 + x_off, -0.5] },
+                        Vertex { position: [ 0.0 + x_off,  0.5] },
+                        Vertex { position: [ 0.5 + x_off, -0.25] }
+                    ];
+                    let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
+
+                    let mut target = display.draw();
+                    target.clear_color(0.0, 0.0, 1.0, 1.0);
+                    target.draw(&vertex_buffer, &indices, &program, &uniform! { x: x_off },
+                                &Default::default()).unwrap();
+                    target.finish().unwrap();
+                },
                 _ => (),
+            },
+            glium::winit::event::Event::AboutToWait => {
+                _window.request_redraw();
             },
             _ => (),
         };
