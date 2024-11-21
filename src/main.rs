@@ -18,11 +18,12 @@ fn main() {
     let (_window, display) = glium::backend::glutin::SimpleWindowBuilder::new().with_title("RuOpGL").build(&event_loop);
 
     //绘制三角形坐标
-    let vertex1 = Vertex { position: [-0.5, -0.5] };
-    let vertex2 = Vertex { position: [0.0, 0.5] };
-    let vertex3 = Vertex { position: [0.5, -0.25] };
-    let shape = vec![vertex1, vertex2, vertex3];
-
+    //更新顶点位置
+    let shape = vec![
+        Vertex { position: [-0.5 , -0.5] },
+        Vertex { position: [ 0.0 ,  0.5] },
+        Vertex { position: [ 0.5 , -0.25] }
+    ];
     //顶点缓冲区
     let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
@@ -30,12 +31,13 @@ fn main() {
     //顶点着色器
     let vertex_shader_src = r#"
         #version 140
+
         in vec2 position;
-        uniform float x;
+
+        uniform mat4 matrix;
+
         void main() {
-            vec2 pos = position;
-            pos.x += x;
-            gl_Position = vec4(pos, 0.0, 1.0);
+            gl_Position = matrix * vec4(position, 0.0, 1.0);
         }
     "#;
 
@@ -69,18 +71,20 @@ fn main() {
                 glium::winit::event::WindowEvent::RedrawRequested => {
                     // 把绘制代码放到这里！
                     t += 0.2;
-                    let x_off = t.sin() * 0.5;
-                    //更新顶点位置
-                    let shape = vec![
-                        Vertex { position: [-0.5 + x_off, -0.5] },
-                        Vertex { position: [ 0.0 + x_off,  0.5] },
-                        Vertex { position: [ 0.5 + x_off, -0.25] }
-                    ];
-                    let vertex_buffer = glium::VertexBuffer::new(&display, &shape).unwrap();
+                    let x = t.sin() * 0.5;
 
                     let mut target = display.draw();
                     target.clear_color(0.0, 0.0, 1.0, 1.0);
-                    target.draw(&vertex_buffer, &indices, &program, &uniform! { x: x_off },
+
+                    let uniforms = uniform! {
+                        matrix: [
+                            [1.0, 0.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0, 0.0],
+                            [0.0, 0.0, 1.0, 0.0],
+                            [  x, 0.0, 0.0, 1.0f32],
+                        ]
+                    };
+                    target.draw(&vertex_buffer, &indices, &program, &uniforms,
                                 &Default::default()).unwrap();
                     target.finish().unwrap();
                 },
@@ -91,5 +95,5 @@ fn main() {
             },
             _ => (),
         };
-    });
+    }).unwrap();
 }
